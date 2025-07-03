@@ -1,5 +1,135 @@
-# twitter_cleaner
-"Manual" automation twitter cleaner, open console, and run the commands;  
-I know it can be more automatic, add delays, scrolls, etc, but it was a my fastest.
-As well, you have to change the value for your current language on line 28, Delete/Eliminar/etc.
-Try to only run it 3 times in a row, give yourself a minute of rest, and keep going, to avoid temporary blocks of api use.
+# Twitter Cleanup Script
+
+This repository contains a JavaScript snippet for bulk-managing your X (formerly Twitter) account directly from the browser console. You can delete tweets, replies, likes, and retweets with a single script by configuring the `MODE` variable.
+
+## Features
+
+* **Delete Tweets** from your timeline
+* **Delete Replies** on your profile's `with_replies` page
+* **Unlike** Tweets on your `likes` page
+* **Undo Retweets** on your `with_replies?mode=retweets` page
+
+## Configuration
+
+Open your browser console on the appropriate X page:
+
+* Timeline: `https://x.com/your_username`
+* Replies: `https://x.com/your_username/with_replies`
+* Likes: `https://x.com/your_username/likes`
+* Retweets: `https://x.com/your_username/with_replies?mode=retweets`
+
+Edit the following variables at the top of the script before running:
+
+```javascript
+var USER          = 'your_username';    // Replace with your X username (no @)
+var BASE_DELAY    = 1000;               // Delay between each item (ms)
+var CONFIRM_DELAY = 800;                // Delay for confirmation dialogs (ms)
+var MODE          = 'timeline';         // 'timeline' | 'replies' | 'likes' | 'retweets'
+```
+
+## Usage
+
+1. Navigate to the desired page in your browser.
+2. Open the developer console (e.g., `F12` or `Ctrl+Shift+I`).
+3. Copy and paste the entire script below into the console and press Enter.
+
+```javascript
+// === CONFIG ===
+var USER          = 'ninefrm';      // your username
+var BASE_DELAY    = 1000;           // ms between each item
+var CONFIRM_DELAY = 800;            // ms to wait for confirmation dialogs
+var MODE          = 'timeline';     // 'timeline' | 'replies' | 'likes' | 'retweets'
+
+// === UTILS ===
+var processWithDelay = function(items, fn) {
+  items.forEach(function(item, i) {
+    setTimeout(function() { fn(item); }, i * BASE_DELAY);
+  });
+};
+
+var scrollAfter = function(count) {
+  setTimeout(function() {
+    window.scrollTo(0, document.body.scrollHeight);
+  }, count * BASE_DELAY + 500);
+};
+
+// === HANDLERS ===
+
+// Delete Tweets (timeline)
+var handleTimeline = function() {
+  var articles = Array.prototype.slice.call(document.getElementsByTagName('article'));
+  var mine = articles.filter(function(x) {
+    return x.querySelector('[data-testid="UserAvatar-Container-' + USER + '"]');
+  });
+  processWithDelay(mine, function(article) {
+    var caret = article.querySelector('[data-testid="caret"]');
+    if (!caret) return;
+    caret.click();
+    setTimeout(function() {
+      var delOpt = Array.prototype.slice
+        .call(document.querySelectorAll('div[role="menuitem"]'))
+        .find(function(el) { return el.textContent.trim() === 'Delete'; });
+      if (!delOpt) { caret.click(); return; }
+      delOpt.click();
+      setTimeout(function() {
+        var confirmBtn = document.querySelector('[data-testid="confirmationSheetDialog"] button');
+        if (confirmBtn) confirmBtn.click();
+      }, CONFIRM_DELAY);
+    }, CONFIRM_DELAY);
+  });
+  scrollAfter(mine.length);
+};
+
+// Delete Replies (with_replies page)
+var handleReplies = function() { handleTimeline(); };
+
+// Unlike Likes (likes page)
+var handleLikes = function() {
+  var articles = Array.prototype.slice.call(document.getElementsByTagName('article'));
+  processWithDelay(articles, function(article) {
+    var btn = document.evaluate(
+      './/div[3]/button', article, null,
+      XPathResult.FIRST_ORDERED_NODE_TYPE, null
+    ).singleNodeValue;
+    if (btn) btn.click();
+  });
+  scrollAfter(articles.length);
+};
+
+// Undo Retweets (with_replies?mode=retweets)
+var handleRetweets = function() {
+  var articles = Array.prototype.slice.call(document.getElementsByTagName('article'));
+  processWithDelay(articles, function(article) {
+    var unrtBtn = article.querySelector('[data-testid="unretweet"]');
+    if (!unrtBtn) return;
+    unrtBtn.click();
+    setTimeout(function() {
+      var xpath = '//*[@id="layers"]/div[2]/div/div/div/div[2]/div/div[3]/div/div/div/div';
+      var confirm = document.evaluate(xpath, document, null,
+        XPathResult.FIRST_ORDERED_NODE_TYPE, null
+      ).singleNodeValue;
+      if (confirm) confirm.click();
+    }, CONFIRM_DELAY);
+  });
+  scrollAfter(articles.length);
+};
+
+// === RUN ===
+switch (MODE) {
+  case 'timeline': handleTimeline(); break;
+  case 'replies':  handleReplies();  break;
+  case 'likes':    handleLikes();    break;
+  case 'retweets': handleRetweets(); break;
+  default: console.warn('Unknown MODE:', MODE);
+}
+```
+
+## Notes
+
+* Adjust `BASE_DELAY` and `CONFIRM_DELAY` if actions happen too quickly or slowly.
+* The script scrolls down after processing all visible items to load more content.
+* Run the script multiple times until no more items are found.
+
+---
+
+*Generated by Twitter Cleanup Script*
